@@ -119,7 +119,7 @@ $blade->render('home.index', $data);
 | ----------------------------------------------- | ------------------------------- |
 | `@foreach(key as value)` `@endforeach`          | PHP foreach() block             |
 | `@forelse(key as value)` `@empty` `@endforelse` | PHP foreach() with empty block  |
-| `@for(i=0; 1<10; i++)` `@endfor`                | PHP for() block                 |
+| `@for(i=0; i<10; i++)` `@endfor`                | PHP for() block                 |
 | `@while(condition)` `@endwhile`                 | PHP while() block               |
 
 
