@@ -128,7 +128,6 @@ $blade->render('home.index', $data);
 | ------------------------------------- | ------------------------------------------ |
 | `@isset(condition)` `@endisset`       | PHP if(isset( )) block                     |
 | `@set(key, value)`                    | Set variable `<?php $key = $value ?>`      |
-| `@isset(condition)` `@endisset`       | PHP if(isset( )) block                     |
 | `@unset(var)`                         | PHP unset()                                |
 | `@continue` or `@continue(condition)` | PHP continue; or if(true) continue;        |
 | `@break` or `@break(condition)`       | PHP break; or if(true) break;              |
