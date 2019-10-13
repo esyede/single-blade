@@ -7,7 +7,7 @@ Standalone blade template engine (single file, no dependencies)
 
 ## Installation
 Download the file from 
-[release page](https://github.com/esyedesingle-blade/releases) 
+[release page](https://github.com/esyede/single-blade/releases) 
 and drop to your project. That's it
 
 
