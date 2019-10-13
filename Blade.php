@@ -647,7 +647,8 @@ class Blade
      */
     public function clearCache()
     {
-        $cache = glob($this->cache_folder.DS.'*.php');
+        $ext = ltrim($this->file_extension, '.');
+        $cache = glob($this->cache_folder.DS.'*.'.$ext);
         $result = true;
         foreach ($cache as $file) {
             $result = @unlink($file);
