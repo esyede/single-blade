@@ -2,6 +2,9 @@
 Standalone blade template engine (single file, no dependencies)
 
 
+## Requirements
+*  PHP 5.4 or newer
+
 ## Installation
 Download the file from 
 [release page](https://github.com/esyedesingle-blade/releases) 
