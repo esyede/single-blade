@@ -27,7 +27,7 @@ class Blade
         $this->setViewFolder('views'.DS);
         $this->setCacheFolder('cache'.DS);
         $this->createCacheFolder();
-        $this->setEchoFormat('$this->esc(%s, \'UTF-8\')');
+        $this->setEchoFormat('$this->esc(%s)');
         // reset
         $this->blocks = [];
         $this->block_stacks = [];
@@ -109,8 +109,9 @@ class Blade
         $value = preg_replace_callback($pattern, function ($matches) {
             $whitespace = empty($matches[2]) ? '' : $matches[2].$matches[2];
 
-            return '<?php echo $this->esc('.$this->compileEchoDefaults($matches[1]).
-                ', \'UTF-8\') ?>'.$whitespace;
+            return '<?php echo $this->esc('.
+                $this->compileEchoDefaults($matches[1]).
+            ') ?>'.$whitespace;
         }, $value);
         
         // compile unescaped echoes
