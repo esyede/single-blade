@@ -15,19 +15,18 @@ and drop to your project. That's it
 
 _views/home/index.blade.php_
 ```blade
-@include('shared.header')
-<body>
-  <div id="container">
-    <h3>Welcome to <span class="reddish">{{ $title }}</span></h3>
-    <p>{{ $content }}</p>
-    
-    <p>@uppercase($mytext)</p>
-    
-    @yield('looping-test')
-  </div>
-  @include('shared.footer')
-</body>
-</html>
+@extends('shared.layout')
+
+@section('looping-test')
+  <p>Let's print odd numbers under 50:</p>
+  <p>
+    @foreach($numbers as $number)
+      @if($number % 2 !== 0)
+        {{ $number }} 
+      @endif
+    @endforeach
+  </p>
+@endsection
 ```
 
 _views/shared/layout.blade.php_
