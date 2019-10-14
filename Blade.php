@@ -21,11 +21,9 @@ class Blade
 
     public function __construct()
     {
-        defined('DS') or define('DS', DIRECTORY_SEPARATOR);
-
         $this->setFileExtension('.blade.php');
-        $this->setViewFolder('views'.DS);
-        $this->setCacheFolder('cache'.DS);
+        $this->setViewFolder('views'.DIRECTORY_SEPARATOR);
+        $this->setCacheFolder('cache'.DIRECTORY_SEPARATOR);
         $this->createCacheFolder();
         $this->setEchoFormat('$this->esc(%s)');
         // reset
@@ -649,7 +647,7 @@ class Blade
     public function clearCache()
     {
         $ext = ltrim($this->file_extension, '.');
-        $cache = glob($this->cache_folder.DS.'*.'.$ext);
+        $cache = glob($this->cache_folder.DIRECTORY_SEPARATOR.'*.'.$ext);
         $result = true;
         foreach ($cache as $file) {
             $result = @unlink($file);
@@ -724,10 +722,10 @@ class Blade
      */
     protected function prepare($name)
     {
-        $name = str_replace(['.', '/'], DS, ltrim($name, '/'));
-        $tpl = $this->view_folder.DS.$name.$this->file_extension;
-        $name = str_replace(['/', '\\', DS], '.', $name);
-        $php = $this->cache_folder.DS.$name.'__'.md5($name).'.php';
+        $name = str_replace(['.', '/'], DIRECTORY_SEPARATOR, ltrim($name, '/'));
+        $tpl = $this->view_folder.DIRECTORY_SEPARATOR.$name.$this->file_extension;
+        $name = str_replace(['/', '\\', DIRECTORY_SEPARATOR], '.', $name);
+        $php = $this->cache_folder.DIRECTORY_SEPARATOR.$name.'__'.md5($name).'.php';
 
         if (! is_file($php) || filemtime($tpl) > filemtime($php)) {
             if (! is_file($tpl)) {
