@@ -38,7 +38,7 @@ class Blade
     public function createCacheFolder()
     {
         if (! is_dir($this->cache_folder)) {
-            $created = mkdir('cache/', 0755, true);
+            $created = mkdir($this->cache_folder, 0755, true);
 
             if (false === $created) {
                 $message = 'Unable to create view cache folder: '.$this->cache_folder;
