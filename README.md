@@ -106,7 +106,7 @@ $blade->render('home.index', $data);
 | `{{-- Comment --}}`        |  Comment                                               |
 
 
-### Conditional
+### Conditionals
 | Command                                                         | Description         |
 | --------------------------------------------------------------- | ------------------- |
 | `@if(condition)` `@elseif(condition)` `@else` `@endif`          | PHP if() block      |
@@ -114,7 +114,7 @@ $blade->render('home.index', $data);
 | `@switch(cases)` `@case(case)` `@break` `@default` `@endswitch` | PHP switch() block  |
 
 
-### Looping
+### Loopings
 | Command                                         | Description                     |
 | ----------------------------------------------- | ------------------------------- |
 | `@foreach(key as value)` `@endforeach`          | PHP foreach() block             |
@@ -123,7 +123,7 @@ $blade->render('home.index', $data);
 | `@while(condition)` `@endwhile`                 | PHP while() block               |
 
 
-### Additional
+### Additional commands
 | Command                                         | Description                      |
 | ------------------------------------- | ------------------------------------------ |
 | `@isset(condition)` `@endisset`       | PHP if(isset( )) block                     |
