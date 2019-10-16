@@ -671,7 +671,7 @@ class Blade
      */
     public function setViewFolder($value)
     {
-        $value = str_replace(['.', '/'], DIRECTORY_SEPARATOR, $value);
+        $value = str_replace('/', DIRECTORY_SEPARATOR, $value);
         $this->view_folder = $value;
     }
 
@@ -681,7 +681,7 @@ class Blade
      */
     public function setCacheFolder($value)
     {
-        $value = str_replace(['.', '/'], DIRECTORY_SEPARATOR, $value);
+        $value = str_replace('/', DIRECTORY_SEPARATOR, $value);
         $this->cache_folder = $value;
     }
 
@@ -716,6 +716,15 @@ class Blade
             throw new \InvalidArgumentException($message);
         }
         self::$directives[$name] = $callback;
+    }
+
+    /**
+     * Get all defined directives
+     * @return  array
+     */
+    public function getDirectives()
+    {
+        return $this->directives;
     }
 
     /**
