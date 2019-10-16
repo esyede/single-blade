@@ -11,7 +11,7 @@ $mytext = 'And this should be capitalized';
 $numbers = range(1, 50);
 
 // Custom directive test
-$blade->directive('uppercase', function ($text) {
+$blade->directive('capitalize', function ($text) {
 	return "<?php echo strtoupper($text) ?>";
 });
 
