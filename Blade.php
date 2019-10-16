@@ -722,9 +722,9 @@ class Blade
      * Get all defined directives
      * @return  array
      */
-    public function getDirectives()
+    public function getAllDirectives()
     {
-        return $this->directives;
+        return self::$directives;
     }
 
     /**
