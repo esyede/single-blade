@@ -157,7 +157,7 @@ So, there is two APIs provided to extend this library:
 #### Blade::directive(string $name, callable $callback)
 
 This method can be used to add custom command. As you see in above usage example, 
-we already use this API to define our new `@uppercase` command.
+we already use this API to define our new `@capitalize` command.
 
 
 #### Blade::extend(callable $compiler)
