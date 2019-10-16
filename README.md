@@ -13,7 +13,7 @@ and drop to your project. That's it
 
 ## Usage
 
-_views/home/index.blade.php_
+_Location: views/home/index.blade.php_
 ```blade
 @extends('shared.layout')
 
@@ -29,7 +29,7 @@ _views/home/index.blade.php_
 @endsection
 ```
 
-_views/shared/layout.blade.php_
+_Location: views/shared/layout.blade.php_
 ```blade
 @include('shared.header')
 <body>
@@ -37,16 +37,17 @@ _views/shared/layout.blade.php_
     <h3>Welcome to <span class="reddish">{{ $title }}</span></h3>
     <p>{{ $content }}</p>
     
-    <p>@uppercase($mytext)</p>
+    <p>@capitalize($mytext)</p>
     
     @yield('looping-test')
+
   </div>
   @include('shared.footer')
 </body>
 </html>
 ```
 
-_views/shared/header.blade.php_
+_Location: views/shared/header.blade.php_
 ```blade
 <!DOCTYPE html>
 <html lang="en">
@@ -59,7 +60,7 @@ _views/shared/header.blade.php_
 </head>
 ```
 
-_views/shared/footer.blade.php_
+_Location: views/shared/footer.blade.php_
 ```blade
 <div id="footer">
   <span class="copyright">Written by <a href="{{ $link }}" target="_blank">@esyede</a></span>
@@ -67,7 +68,7 @@ _views/shared/footer.blade.php_
 </div>
 ```
 
-_index.php_
+_Location: index.php_
 ```php
 <?php
 include 'Blade.php';
@@ -82,7 +83,7 @@ $mytext = 'And this should be capitalized';
 $numbers = range(1, 50);
 
 // Create custom directive
-$blade->directive('uppercase', function ($text) {
+$blade->directive('capitalize', function ($text) {
   return "<?php echo strtoupper($text) ?>";
 });
 
@@ -146,6 +147,23 @@ $blade->render('home.index', $data);
 | `@show`                         | Stop section and yields the content                                |
 | `@append`                       | Stop section and append it to existing section with the same name  |
 | `@overwrite`                    | Stop section, overwrite previous section with the same name        |
+
+
+### Extending the class
+Ofcourse in the future we need more functionalities as the built-in functionalities is indeed limited. 
+So, there is two APIs provided to extend this library:
+
+
+**Blade::directive(string $name, callable $callback)**
+
+This method can be used to add custom command. As you see in above usage example, 
+we already use this API to define our new `@uppercase` command.
+
+
+**Blade::extend(callable $compiler)**
+
+This is another API provided to add custom directive. In fact, this command is used define our 
+built-in `set()` command.
 
 
 ### License
