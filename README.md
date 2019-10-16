@@ -154,13 +154,13 @@ Ofcourse in the future we need more functionalities as the built-in functionalit
 So, there is two APIs provided to extend this library:
 
 
-**Blade::directive(string $name, callable $callback)**
+#### Blade::directive(string $name, callable $callback)
 
 This method can be used to add custom command. As you see in above usage example, 
 we already use this API to define our new `@uppercase` command.
 
 
-**Blade::extend(callable $compiler)**
+#### Blade::extend(callable $compiler)
 
 This is another API provided to add custom directive. In fact, this command is used define our 
 built-in `set()` command.
