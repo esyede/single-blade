@@ -2,13 +2,17 @@
 Standalone blade template engine (single file, no dependencies)
 
 
+
 ## Requirements
 *  PHP 5.4 or newer
+
+
 
 ## Installation
 Download the file from 
 [release page](https://github.com/esyede/single-blade/releases) 
 and drop to your project. That's it
+
 
 
 ## Usage
@@ -29,6 +33,7 @@ _Location: views/home/index.blade.php_
 @endsection
 ```
 
+
 _Location: views/shared/layout.blade.php_
 ```blade
 @include('shared.header')
@@ -47,6 +52,7 @@ _Location: views/shared/layout.blade.php_
 </html>
 ```
 
+
 _Location: views/shared/header.blade.php_
 ```blade
 <!DOCTYPE html>
@@ -60,6 +66,7 @@ _Location: views/shared/header.blade.php_
 </head>
 ```
 
+
 _Location: views/shared/footer.blade.php_
 ```blade
 <div id="footer">
@@ -68,10 +75,13 @@ _Location: views/shared/footer.blade.php_
 </div>
 ```
 
+
 _Location: index.php_
 ```php
 <?php
 include 'Blade.php';
+
+use Esyede\Blade;
 
 $blade = new Blade();
 
@@ -94,49 +104,60 @@ $blade->render('home.index', $data);
 ```
 
 
+
 ## Features
 
+
 ### Echoes
-| Command                    | Description                                        |
-| -------------------------- | ------------------------------------------------------ |
-| `{{ $var }}`               | Echo. It's escaped by default, just like in Laravel 5  |
-| `{!! $var !!}`             | Raw echo (no escaping)                                 |
-| `{{ $var or 'default' }}`  |  Echo content with a default value                     |
-| `{{{ $var }}}`             |  Echo escaped content                                  |
-| `{{-- Comment --}}`        |  Comment                                               |
+
+| Command                    | Description                                           |
+| -------------------------- | ----------------------------------------------------- |
+| `{{ $var }}`               | Echo. It's escaped by default, just like in Laravel   |
+| `{!! $var !!}`             | Raw echo (no escaping)                                |
+| `{{ $var or 'default' }}`  | Echo content with a default value                     |
+| `{{{ $var }}}`             | Echo escaped content                                  |
+| `{{-- Comment --}}`        | Comment                                               |
+
 
 
 ### Conditionals
-| Command                                                         | Description         |
-| --------------------------------------------------------------- | ------------------- |
-| `@if(condition)` `@elseif(condition)` `@else` `@endif`          | PHP if() block      |
-| `@unless(condition)` `@endunless`                               | PHP if(! ) block    |
-| `@switch(cases)` `@case(case)` `@break` `@default` `@endswitch` | PHP switch() block  |
+
+| Command                                                         | Description             |
+| --------------------------------------------------------------- | ----------------------- |
+| `@if(condition)` `@elseif(condition)` `@else` `@endif`          | PHP `if ( )` block      |
+| `@unless(condition)` `@endunless`                               | PHP `if (! )` block     |
+| `@switch(cases)` `@case(case)` `@break` `@default` `@endswitch` | PHP `switch ( )` block  |
+
 
 
 ### Loopings
-| Command                                         | Description                     |
-| ----------------------------------------------- | ------------------------------- |
-| `@foreach(key as value)` `@endforeach`          | PHP foreach() block             |
-| `@forelse(key as value)` `@empty` `@endforelse` | PHP foreach() with empty block  |
-| `@for(i=0; i<10; i++)` `@endfor`                | PHP for() block                 |
-| `@while(condition)` `@endwhile`                 | PHP while() block               |
+
+| Command                                         | Description                        |
+| ----------------------------------------------- | ---------------------------------- |
+| `@foreach(key as value)` `@endforeach`          | PHP `foreach ( )` block            |
+| `@forelse(key as value)` `@empty` `@endforelse` | PHP `foreach ( )` with empty block |
+| `@for(i=0; i<10; i++)` `@endfor`                | PHP `for ( )` block                |
+| `@while(condition)` `@endwhile`                 | PHP `while ( )` block              |
+
 
 
 ### Additional commands
-| Command                                         | Description                      |
+
+| Command                               | Description                                |
 | ------------------------------------- | ------------------------------------------ |
-| `@isset(condition)` `@endisset`       | PHP if(isset( )) block                     |
+| `@isset(condition)` `@endisset`       | PHP `if (isset( ))` block                  |
 | `@set(key, value)`                    | Set variable `<?php $key = $value ?>`      |
-| `@unset(var)`                         | PHP unset()                                |
-| `@continue` or `@continue(condition)` | PHP continue; or if(true) continue;        |
+| `@unset(var)`                         | PHP `unset()`                              |
+| `@continue` or `@continue(condition)` | PHP `continue;` or `if (true) continue;`   |
 | `@break` or `@break(condition)`       | PHP break; or if(true) break;              |
 | `@exit` or `@exit(condition)`         | PHP exit; or if(true) exit;                |
 | `@json(data)`                         | PHP json_encode()                          |
 | `@method('put')`                      | HTML hidden input for form method spoofing |
 
 
+
 ### Layout and sections
+
 | Command                         | Description                                                        |
 | ------------------------------- | ------------------------------------------------------------------ |
 | `@include(file)`                | Includes another view                                              |
@@ -149,22 +170,34 @@ $blade->render('home.index', $data);
 | `@overwrite`                    | Stop section, overwrite previous section with the same name        |
 
 
+
 ### Extending the class
+
 Ofcourse in the future we need more functionalities as the built-in functionalities is indeed limited. 
 So, there is two APIs provided to extend this library:
 
+```php
+Blade::directive(string $name, callable $callback)
+```
 
-#### Blade::directive(string $name, callable $callback)
 
 This method can be used to add custom command. As you see in above usage example, 
-we already use this API to define our new `@capitalize` command.
+we already use this API to define our new `@capitalize()` command.
 
 
-#### Blade::extend(callable $compiler)
+```php
+Blade::extend(callable $compiler)
+```
+
 
 This is another API provided to add custom directive. In fact, this command is used define our 
-built-in `set()` command.
+built-in `@set()` command.
+
+
+That's pretty much it. Thank you for stopping by!
+
 
 
 ### License
+
 This library is licensed under the [MIT License](http://opensource.org/licenses/MIT)
