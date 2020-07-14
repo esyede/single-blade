@@ -176,22 +176,41 @@ $blade->render('home.index', $data);
 Ofcourse in the future we need more functionalities as the built-in functionalities is indeed limited. 
 So, there is two APIs provided to extend this library:
 
-```php
-Blade::directive(string $name, callable $callback)
-```
 
+#### directive()
 
-This method can be used to add custom command. As you see in above usage example, 
-we already use this API to define our new `@capitalize()` command.
+This method can be used to add custom command. As you see in above example, 
+we already use this API to define our new `@capitalize()` command:
 
 
 ```php
-Blade::extend(callable $compiler)
+// Signature:
+Blade::directive(string $name, Closure $callback)
+
+
+// Example:
+Blade::directive('capitalize', function ($value) {
+  return strtolower($value);
+});
+
 ```
 
+
+#### extend()
 
 This is another API provided to add custom directive. In fact, this command is used define our 
-built-in `@set()` command.
+built-in `@set()` command:
+
+```php
+// Signature:
+Blade::extend(Closure $compiler)
+
+// Example:
+Blade::extend(function ($value) {
+  return preg_replace("/@set\(['\"](.*?)['\"]\,(.*)\)/", '<?php $$1 =$2; ?>', $value);
+});
+```
+
 
 
 That's pretty much it. Thank you for stopping by!
