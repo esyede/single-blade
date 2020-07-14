@@ -1,22 +1,28 @@
 <?php
 
+namespace Esyede;
+
+use Closure;
+use RuntimeException;
+use InvalidArgumentException;
+
 class Blade
 {
     const VERSION = '1.0.0';
-    
-    protected $file_extension = null;
-    protected $view_folder = null;
-    protected $cache_folder = null;
-    protected $echo_format = null;
+
+    protected $fileExtension = null;
+    protected $viewFolder = null;
+    protected $cacheFolder = null;
+    protected $echoFormat = null;
     protected $extensions = [];
     protected $templates = [];
 
     protected static $directives = [];
 
     protected $blocks = [];
-    protected $block_stacks = [];
-    protected $empty_counter = 0;
-    protected $first_case_switch = true;
+    protected $blockStacks = [];
+    protected $emptyCounter = 0;
+    protected $firstCaseSwitch = true;
 
 
     public function __construct()
@@ -28,21 +34,21 @@ class Blade
         $this->setEchoFormat('$this->esc(%s)');
         // reset
         $this->blocks = [];
-        $this->block_stacks = [];
+        $this->blockStacks = [];
     }
 
     /**
      * Create cache folder
-     * @return  bool
+     *
+     * @return bool
      */
     public function createCacheFolder()
     {
-        if (! is_dir($this->cache_folder)) {
-            $created = mkdir($this->cache_folder, 0755, true);
+        if (! is_dir($this->cacheFolder)) {
+            $created = mkdir($this->cacheFolder, 0755, true);
 
             if (false === $created) {
-                $message = 'Unable to create view cache folder: '.$this->cache_folder;
-                throw new \RuntimeException($message);
+                throw new RuntimeException('Unable to create view cache folder: '.$this->cacheFolder);
             }
         }
 
@@ -54,10 +60,12 @@ class Blade
     //!----------------------------------------------------------------
     /**
      * Compile blade statements
-     * @param   string  $value  Statement
+     *
+     * @param string $statement
+     *
      * @return  string
      */
-    protected function compileStatements($value)
+    protected function compileStatements($statement)
     {
         $pattern = '/\B@(@?\w+(?:->\w+)?)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x';
 
@@ -80,199 +88,209 @@ class Blade
             }
 
             return isset($match[3]) ? $match[0] : $match[0].$match[2];
-        }, $value);
+        }, $statement);
     }
 
     /**
      * Compile blade comments
-     * @param   string  $value  Comment
-     * @return  string
+     *
+     * @param string $comment
+     *
+     * @return string
      */
-    protected function compileComments($value)
+    protected function compileComments($comment)
     {
-        $pattern = '/\{\{--((.|\s)*?)--\}\}/';
-
-        return preg_replace($pattern, '<?php /*$1*/ ?>', $value);
+    	return preg_replace('/\{\{--((.|\s)*?)--\}\}/', '<?php /*$1*/ ?>', $comment);
     }
 
     /**
      * Compile blade echoes
-     * @param   string  $value  Echo data
-     * @return  string
+     *
+     * @param string $string
+     *
+     * @return string
      */
-    protected function compileEchos($value)
+    protected function compileEchos($string)
     {
         // compile escaped echoes
-        $pattern = '/\{\{\{\s*(.+?)\s*\}\}\}(\r?\n)?/s';
-        $value = preg_replace_callback($pattern, function ($matches) {
+        $string = preg_replace_callback('/\{\{\{\s*(.+?)\s*\}\}\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[2]) ? '' : $matches[2].$matches[2];
 
-            return '<?php echo $this->esc('.
+            return '<?= $this->esc('.
                 $this->compileEchoDefaults($matches[1]).
             ') ?>'.$whitespace;
-        }, $value);
-        
+        }, $string);
+
         // compile unescaped echoes
-        $pattern = '/\{\!!\s*(.+?)\s*!!\}(\r?\n)?/s';
-        $value = preg_replace_callback($pattern, function ($matches) {
+        $string = preg_replace_callback('/\{\!!\s*(.+?)\s*!!\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[2]) ? '' : $matches[2].$matches[2];
 
-            return '<?php echo '.$this->compileEchoDefaults($matches[1]).' ?>'.$whitespace;
-        }, $value);
+            return '<?= '.$this->compileEchoDefaults($matches[1]).' ?>'.$whitespace;
+        }, $string);
 
         // compile regular echoes
-        $pattern = '/(@)?\{\{\s*(.+?)\s*\}\}(\r?\n)?/s';
-        $value = preg_replace_callback($pattern, function ($matches) {
+        $string = preg_replace_callback('/(@)?\{\{\s*(.+?)\s*\}\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[3]) ? '' : $matches[3].$matches[3];
 
             return $matches[1]
                 ? substr($matches[0], 1)
-                : '<?php echo '
-                  .sprintf($this->echo_format, $this->compileEchoDefaults($matches[2]))
+                : '<?= '
+                  .sprintf($this->echoFormat, $this->compileEchoDefaults($matches[2]))
                   .' ?>'.$whitespace;
-        }, $value);
+        }, $string);
 
-        return $value;
+        return $string;
     }
 
     /**
      * Compile default echoes
-     * @param   string  $value  Echo data
-     * @return  string
+     *
+     * @param string $string
+     *
+     * @return string
      */
-    public function compileEchoDefaults($value)
+    public function compileEchoDefaults($string)
     {
-        $pattern = '/^(?=\$)(.+?)(?:\s+or\s+)(.+?)$/s';
-
-        return preg_replace($pattern, 'isset($1) ? $1 : $2', $value);
+        return preg_replace('/^(?=\$)(.+?)(?:\s+or\s+)(.+?)$/s', 'isset($1) ? $1 : $2', $string);
     }
 
     /**
      * Compile user-defined extensions
-     * @param   string  $value  Extension
-     * @return  string
+     *
+     * @param string $string
+     *
+     * @return string
      */
-    protected function compileExtensions($value)
+    protected function compileExtensions($string)
     {
         foreach ($this->extensions as $compiler) {
-            $value = $compiler($value, $this);
+            $string = $compiler($string, $this);
         }
 
-        return $value;
+        return $string;
     }
 
     /**
      * Replace @php and @endphp blocks
-     * @param   string  $value  PHP block
-     * @return  string
+     *
+     * @param string $string
+     *
+     * @return string
      */
-    public function replacePhpBlocks($value)
+    public function replacePhpBlocks($string)
     {
-        $pattern = '/(?<!@)@php(.*?)@endphp/s';
-        $value = preg_replace_callback($pattern, function ($matches) {
+        $string = preg_replace_callback('/(?<!@)@php(.*?)@endphp/s', function ($matches) {
             return "<?php{$matches[1]}?>";
-        }, $value);
+        }, $string);
 
-        return $value;
+        return $string;
     }
 
     /**
      * Escape variables
-     * @param   string  $str      Variable name
-     * @param   string  $charset  Character encoding
-     * @return  string 
+     * @param string $string
+     * @param string $charset
+     *
+     * @return string
      */
-    public function esc($str, $charset = null)
+    public function esc($string, $charset = null)
     {
-        $charset = is_null($charset) ? 'UTF-8' : $charset;
-
-        return htmlspecialchars($str, ENT_QUOTES, $charset);
+    	return htmlspecialchars($string, ENT_QUOTES, is_null($charset) ? 'UTF-8' : $charset);
     }
 
     //!----------------------------------------------------------------
     //! Concerns
     //!----------------------------------------------------------------
-    
+
     /**
-     * Usage: @php($var = 'value')
-     * @param   string  $value  Some PHP expression
-     * @return  string
+     * Usage: @php($varName = 'value')
+     *
+     * @param string $value
+     *
+     * @return string
      */
     protected function compilePhp($value)
     {
-        if ($value) {
-            return "<?php {$value}; ?>";
-        }
-
-        return "@php{$value}";
+    	return $value ? "<?php {$value}; ?>" : "@php{$value}";
     }
 
     /**
      * Usage: @json($data)
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param  mixed $data
+     *
+     * @return string
      */
-    protected function compileJson($value)
+    protected function compileJson($data)
     {
         $default = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT;
-        if (isset($value) && '(' == $value[0]) {
-            $value = substr($value, 1, -1);
+
+        if (isset($data) && '(' == $data[0]) {
+            $data = substr($data, 1, -1);
         }
 
-        $parts = explode(',', $value);
+        $parts = explode(',', $data);
         $options = isset($parts[1]) ? trim($parts[1]) : $default;
         $depth = isset($parts[2]) ? trim($parts[2]) : 512;
-        
+
         // PHP < 5.5.0 doesn't have the $depth parameter
         if (PHP_VERSION_ID >= 50500) {
-            return "<?php echo json_encode($parts[0], $options, $depth) ?>";
+            return "<?= json_encode($parts[0], $options, $depth) ?>";
         }
 
-        return "<?php echo json_encode($parts[0], $options) ?>";
+        return "<?= json_encode($parts[0], $options) ?>";
     }
 
     /**
      * Usage: @unset($var)
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param mixed $variable
+     *
+     * @return string
      */
-    protected function compileUnset($value)
+    protected function compileUnset($variable)
     {
-        return "<?php unset{$value}; ?>";
+        return "<?php unset{$variable}; ?>";
     }
 
     /**
-     * Usage: @if($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @if ($condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileIf($value)
+    protected function compileIf($condition)
     {
-        return "<?php if{$value}: ?>";
+        return "<?php if{$condition}: ?>";
     }
 
     /**
-     * Usage: @elseif(condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @elseif (condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileElseif($value)
+    protected function compileElseif($condition)
     {
-        return "<?php elseif{$value}: ?>";
+        return "<?php elseif{$condition}: ?>";
     }
 
     /**
      * Usage: @else
-     * @return  string
+     *
+     * @return string
      */
     protected function compileElse()
     {
         return '<?php else: ?>';
     }
-    
+
     /**
      * Usage: @endif
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndif()
     {
@@ -280,37 +298,41 @@ class Blade
     }
 
     /**
-     * Usage: @switch($cases)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @switch ($condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileSwitch($value)
+    protected function compileSwitch($condition)
     {
-        $this->first_case_switch = true;
+        $this->firstCaseSwitch = true;
 
-        return "<?php switch{$value}:";
+        return "<?php switch{$condition}:";
     }
 
     /**
-     * Usage: @case($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @case ($condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileCase($value)
+    protected function compileCase($condition)
     {
-        if ($this->first_case_switch) {
-            $this->first_case_switch = false;
+        if ($this->firstCaseSwitch) {
+            $this->firstCaseSwitch = false;
 
-            return "case {$value}: ?>";
+            return "case {$condition}: ?>";
         }
 
-        return "<?php case {$value}: ?>";
+        return "<?php case {$condition}: ?>";
     }
 
     /**
      * Usage: @default
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @return string
      */
     protected function compileDefault()
     {
@@ -319,18 +341,18 @@ class Blade
 
     /**
      * Usage: @break or @break($condition)
-     * @param   mixed  $value
+     *
+     * @param   mixed  $condition
      * @return  string
      */
-    protected function compileBreak($value)
+    protected function compileBreak($condition)
     {
-        if ($value) {
-            $pattern = '/\(\s*(-?\d+)\s*\)$/';
-            preg_match($pattern, $value, $matches);
+        if ($condition) {
+            preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
 
             return $matches
                 ? '<?php break '.max(1, $matches[1]).'; ?>'
-                : "<?php if{$value} break; ?>";
+                : "<?php if{$condition} break; ?>";
         }
 
         return '<?php break; ?>';
@@ -338,7 +360,8 @@ class Blade
 
     /**
      * Usage: @endswitch
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndswitch()
     {
@@ -346,18 +369,21 @@ class Blade
     }
 
     /**
-     * Usage: @isset($var)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @isset($variable)
+     *
+     * @param mixed $variable
+     *
+     * @return string
      */
-    protected function compileIsset($value)
+    protected function compileIsset($variable)
     {
-        return "<?php if(isset{$value}): ?>";
+        return "<?php if(isset{$variable}): ?>";
     }
 
     /**
      * Usage: @endisset
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndisset()
     {
@@ -366,14 +392,15 @@ class Blade
 
     /**
      * Usage: @continue or @continue($condition)
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileContinue($value)
+    protected function compileContinue($condition)
     {
-        if ($value) {
-            $pattern = '/\(\s*(-?\d+)\s*\)$/';
-            preg_match($pattern, $value, $matches);
+        if ($condition) {
+            preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
 
             return $matches
                 ? '<?php continue '.max(1, $matches[1]).'; ?>'
@@ -385,35 +412,39 @@ class Blade
 
     /**
      * Usage: @exit or @exit($condition)
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileExit($value)
+    protected function compileExit($condition)
     {
-        if ($value) {
-            $pattern = '/\(\s*(-?\d+)\s*\)$/';
-            preg_match($pattern, $value, $matches);
+        if ($condition) {
+            preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
 
             return $matches
                 ? '<?php exit '.max(1, $matches[1]).'; ?>'
-                : "<?php if{$value} exit; ?>";
+                : "<?php if{$condition} exit; ?>";
         }
         return '<?php exit; ?>';
     }
 
     /**
      * Usage: @unless($condition)
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileUnless($value)
+    protected function compileUnless($condition)
     {
-        return "<?php if(! $value): ?>";
+        return "<?php if (! $condition): ?>";
     }
 
     /**
      * Usage: @endunless
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndunless()
     {
@@ -421,18 +452,21 @@ class Blade
     }
 
     /**
-     * Usage: @for($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @for ($condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileFor($value)
+    protected function compileFor($condition)
     {
-        return "<?php for{$value}: ?>";
+        return "<?php for{$condition}: ?>";
     }
 
     /**
      * Usage: @endfor
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndfor()
     {
@@ -440,19 +474,21 @@ class Blade
     }
 
     /**
-     * Usage: @foreach($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @foreach ($iterable)
+     *
+     * @param mixed $iterable
+     *
+     * @return string
      */
-    protected function compileForeach($value)
+    protected function compileForeach($iterable)
     {
-        return "<?php foreach{$value}: ?>";
+        return "<?php foreach{$iterable}: ?>";
     }
 
     /**
      * Usage: @endforeach
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndforeach()
     {
@@ -460,34 +496,38 @@ class Blade
     }
 
     /**
-     * Usage: @forelse($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @forelse ($condition)
+     *
+     * @param mixed $iterable
+     *
+     * @return string
      */
-    protected function compileForelse($value)
+    protected function compileForelse($iterable)
     {
-        ++$this->empty_counter;
+        ++$this->emptyCounter;
 
-        return "<?php \$__empty_{$this->empty_counter} = true; ".
-            "foreach{$value}: ".
-            "\$__empty_{$this->empty_counter} = false;?>";
+        return "<?php \$__empty_{$this->emptyCounter} = true; ".
+            "foreach{$iterable}: ".
+            "\$__empty_{$this->emptyCounter} = false;?>";
     }
 
     /**
      * Usage: @empty
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEmpty()
     {
-        $string = "<?php endforeach; if (\$__empty_{$this->empty_counter}): ?>";
-        --$this->empty_counter;
+        $string = "<?php endforeach; if (\$__empty_{$this->emptyCounter}): ?>";
+        --$this->emptyCounter;
 
         return $string;
     }
 
     /**
      * Usage: @endforelse
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndforelse()
     {
@@ -495,18 +535,21 @@ class Blade
     }
 
     /**
-     * Usage: @while($condition)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @while ($condition)
+     *
+     * @param mixed $condition
+     *
+     * @return string
      */
-    protected function compileWhile($value)
+    protected function compileWhile($condition)
     {
-        return "<?php while{$value}: ?>";
+        return "<?php while{$condition}: ?>";
     }
 
     /**
      * Usage: @endwhile
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndwhile()
     {
@@ -514,57 +557,65 @@ class Blade
     }
 
     /**
-     * Usage: @extends($parentView)
-     * @param   string  $value
-     * @return  string
+     * Usage: @extends($parent)
+     *
+     * @param string $parent
+     *
+     * @return string
      */
-    protected function compileExtends($value)
+    protected function compileExtends($parent)
     {
-        if (isset($value) && '(' == $value[0]) {
-            $value = substr($value, 1, -1);
+        if (isset($parent) && '(' == $parent[0]) {
+            $parent = substr($parent, 1, -1);
         }
 
-        return "<?php \$this->addParent({$value}) ?>";
+        return "<?php \$this->addParent({$parent}) ?>";
     }
 
     /**
-     * Usage: @include($viewFile)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @include($view)
+     *
+     * @param string $view
+     *
+     * @return string
      */
-    protected function compileInclude($value)
+    protected function compileInclude($view)
     {
-        if (isset($value) && '(' == $value[0]) {
-            $value = substr($value, 1, -1);
+        if (isset($view) && '(' == $view[0]) {
+            $view = substr($view, 1, -1);
         }
 
-        return "<?php include \$this->prepare({$value}) ?>";
+        return "<?php include \$this->prepare({$view}) ?>";
     }
 
     /**
-     * Usage: @yield($data)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @yield($string)
+     *
+     * @param string $string
+     *
+     * @return string
      */
-    protected function compileYield($value)
+    protected function compileYield($string)
     {
-        return "<?php echo \$this->block{$value} ?>";
+        return "<?= \$this->block{$string} ?>";
     }
 
     /**
-     * Usage: @section($view)
-     * @param   mixed  $value
-     * @return  string
+     * Usage: @section($name)
+     *
+     * @param string $name
+     *
+     * @return string
      */
-    protected function compileSection($value)
+    protected function compileSection($name)
     {
-        return "<?php \$this->beginBlock{$value} ?>";
+        return "<?php \$this->beginBlock{$name} ?>";
     }
 
     /**
      * Usage: @endsection
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @return string
      */
     protected function compileEndsection()
     {
@@ -573,16 +624,18 @@ class Blade
 
     /**
      * Usage: @show
-     * @return  string
+     *
+     * @return string
      */
     protected function compileShow()
     {
-        return '<?php echo $this->block($this->endBlock()) ?>';
+        return '<?= $this->block($this->endBlock()) ?>';
     }
 
     /**
      * Usage: @append
-     * @return  string
+     *
+     * @return string
      */
     protected function compileAppend()
     {
@@ -591,7 +644,8 @@ class Blade
 
     /**
      * Usage: @stop
-     * @return  string
+     *
+     * @return string
      */
     protected function compileStop()
     {
@@ -600,7 +654,8 @@ class Blade
 
     /**
      * Usage: @overwrite
-     * @return  string
+     *
+     * @return string
      */
     protected function compileOverwrite()
     {
@@ -609,30 +664,34 @@ class Blade
 
     /**
      * Usage: @method('put')
-     * @param   mixed  $value
-     * @return  string
+     *
+     * @param string $method
+     *
+     * @return string
      */
-    protected function compileMethod($value)
+    protected function compileMethod($method)
     {
-        return '<input type="hidden" name="_method" '.
-            "value=\"<?php echo strtoupper{$value} ?>\">\n";
+        return "<input type=\"hidden\" name=\"_method\" value=\"<?= strtoupper{$method} ?>\">\n";
     }
 
     //!----------------------------------------------------------------
     //! Renderer
     //!----------------------------------------------------------------
     /**
-     * Render the view template
-     * @param   string  $name        View name
-     * @param   array   $data        View data
-     * @param   bool    $returnOnly  Don't echo it to the browser?
-     * @return  string
-     * 
-     * Tip: dot and forward-slash (., /) can be used as directory separator
+     * Render the view template.
+     * Tip: dot and forward-slash (., /) can be used as directory separator.
+     *
+     * @param string $name
+     * @param array  $data
+     * @param bool   $returnOnly
+     *
+     * @return string
+     *
      */
     public function render($name, array $data = [], $returnOnly = false)
     {
         $html = $this->fetch($name, $data);
+
         if (false !== $returnOnly) {
             return $html;
         } else {
@@ -642,14 +701,17 @@ class Blade
 
     /**
      * Clear chache folder
-     * @return  bool
+     *
+     * @return bool
      */
     public function clearCache()
     {
-        $ext = ltrim($this->file_extension, '.');
-        $cache = glob($this->cache_folder.DIRECTORY_SEPARATOR.'*.'.$ext);
+        $extension = ltrim($this->fileExtension, '.');
+        $files = glob($this->cacheFolder.DIRECTORY_SEPARATOR.'*.'.$extension);
+
         $result = true;
-        foreach ($cache as $file) {
+
+        foreach ($files as $file) {
             $result = @unlink($file);
         }
 
@@ -657,70 +719,82 @@ class Blade
     }
 
     /**
-     * Set file extension for the view files (default to: *.blade.php)
-     * @param  string  $value
+     * Set file extension for the view files
+     * Default to: '.blade.php'
+     *
+     * @param string $extension
      */
-    public function setFileExtension($value)
+    public function setFileExtension($extension)
     {
-        $this->file_extension = $value;
+        $this->fileExtension = $extension;
     }
 
     /**
-     * Set view folder location (default to: ./views)
-     * @param  string  $value
+     * Set view folder location
+     * Default to: './views'
+     *
+     * @param string $value
      */
-    public function setViewFolder($value)
+    public function setViewFolder($path)
     {
-        $value = str_replace('/', DIRECTORY_SEPARATOR, $value);
-        $this->view_folder = $value;
+    	$this->viewFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
     }
 
     /**
-     * Set cache folder location (default to: ./cache)
-     * @param  string  $value
+     * Set cache folder location
+     * Default to: ./cache
+     *
+     * @param string $path
      */
-    public function setCacheFolder($value)
+    public function setCacheFolder($path)
     {
-        $value = str_replace('/', DIRECTORY_SEPARATOR, $value);
-        $this->cache_folder = $value;
+    	$this->cacheFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
     }
 
     /**
-     * Set echo format (default to: $this->esc($data))
-     * @param  string  $value
+     * Set echo format
+     * Default to: '$this->esc($data)'
+     *
+     * @param string $format
      */
-    public function setEchoFormat($value)
+    public function setEchoFormat($format)
     {
-        $this->echo_format = $value;
+        $this->echoFormat = $format;
     }
 
     /**
-     * Extend this class (add custom directives)
-     * @param  callable  $value
+     * Extend this class (Add custom directives)
+     *
+     * @param Closure $compiler
      */
-    public function extend(callable $compiler)
+    public function extend(Closure $compiler)
     {
         $this->extensions[] = $compiler;
     }
 
     /**
      * Another (simpler) way to add custom directives
-     * @param  string  $name   Directive name
-     * @param  string  $value  Function to handle this new directive
+     *
+     * @param string $name
+     *
+     * @param string $callback
      */
-    public function directive($name, callable $callback)
+    public function directive($name, Closure $callback)
     {
         if (! preg_match('/^\w+(?:->\w+)?$/x', $name)) {
-            $message = 'The directive name ['.$name.'] is not valid. Directive names '.
-                'must only contains alphanumeric characters and underscores.';
-            throw new \InvalidArgumentException($message);
+        	throw new InvalidArgumentException(
+        		'The directive name ['.$name.'] is not valid. Directive names '.
+                'must only contains alphanumeric characters and underscores.'
+        	);
         }
+
         self::$directives[$name] = $callback;
     }
 
     /**
      * Get all defined directives
-     * @return  array
+     *
+     * @return array
      */
     public function getAllDirectives()
     {
@@ -729,59 +803,63 @@ class Blade
 
     /**
      * Prepare the view file (locate and extract)
-     * @param  string  $name  View name
+     *
+     * @param string $view
      */
-    protected function prepare($name)
+    protected function prepare($view)
     {
-        $name = str_replace(['.', '/'], DIRECTORY_SEPARATOR, ltrim($name, '/'));
-        $tpl = $this->view_folder.DIRECTORY_SEPARATOR.$name.$this->file_extension;
-        $name = str_replace(['/', '\\', DIRECTORY_SEPARATOR], '.', $name);
-        $php = $this->cache_folder.DIRECTORY_SEPARATOR.$name.'__'.md5($name).'.php';
+        $view = str_replace(['.', '/'], DIRECTORY_SEPARATOR, ltrim($view, '/'));
+        $actual = $this->viewFolder.DIRECTORY_SEPARATOR.$view.$this->fileExtension;
 
-        if (! is_file($php) || filemtime($tpl) > filemtime($php)) {
-            if (! is_file($tpl)) {
-                throw new \RuntimeException('View file not found: '.$tpl);
+        $view = str_replace(['/', '\\', DIRECTORY_SEPARATOR], '.', $view);
+        $cache = $this->cacheFolder.DIRECTORY_SEPARATOR.$view.'__'.md5($view).'.php';
+
+        if (! is_file($cache) || filemtime($actual) > filemtime($cache)) {
+            if (! is_file($actual)) {
+                throw new RuntimeException('View file not found: '.$actual);
             }
 
-            $text = file_get_contents($tpl);
-            // add @set() directive using extend() method, we need 2 parameters here
+            $content = file_get_contents($actual);
+            // Add @set() directive using extend() method, we need 2 parameters here
             $this->extend(function ($value) {
-                return preg_replace(
-                    "/@set\(['\"](.*?)['\"]\,(.*)\)/",
-                    '<?php $$1 =$2; ?>',
-                    $value
-                );
+                return preg_replace("/@set\(['\"](.*?)['\"]\,(.*)\)/", '<?php $$1 =$2; ?>', $value);
             });
 
             $compilers = ['Statements', 'Comments', 'Echos', 'Extensions'];
-            foreach ($compilers as $type) {
-                $text = $this->{'compile'.$type}($text);
+
+            foreach ($compilers as $compiler) {
+                $content = $this->{'compile'.$compiler}($content);
             }
 
-            // replace @php and @endphp blocks
-            $text = $this->replacePhpBlocks($text);
+            // Replace @php and @endphp blocks
+            $content = $this->replacePhpBlocks($content);
 
-            file_put_contents($php, $text);
+            file_put_contents($cache, $content);
         }
 
-        return $php;
+        return $cache;
     }
 
     /**
      * Fetch the view data passed by user
-     * @param  string  $name  View name
-     * @param  array   $data  View data
+     *
+     * @param string $view
+     *
+     * @param array $data
      */
     public function fetch($name, array $data = [])
     {
         $this->templates[] = $name;
+
         if (! empty($data)) {
             extract($data);
         }
 
         while ($templates = array_shift($this->templates)) {
             $this->beginBlock('content');
+
             require $this->prepare($templates);
+
             $this->endBlock(true);
         }
 
@@ -790,7 +868,8 @@ class Blade
 
     /**
      * Helper method for @extends() directive to define parent view
-     * @param  string  $name  Parent view name
+     *
+     * @param  string $name
      */
     protected function addParent($name)
     {
@@ -799,36 +878,41 @@ class Blade
 
     /**
      * Return content of block if exists
-     * @param   string  $name     Block name
-     * @param   mixed   $default  Default value if block didn't exists
-     * @return  string
+     *
+     * @param string $name
+     * @param mixed  $default
+     *
+     * @return string
      */
     protected function block($name, $default = '')
     {
-        return array_key_exists($name, $this->blocks)
-            ? $this->blocks[$name]
-            : $default;
+        return array_key_exists($name, $this->blocks) ? $this->blocks[$name] : $default;
     }
 
     /**
-     * Start the block
-     * @param   string  $name  Block name
-     * @return  void
+     * Start a block
+     *
+     * @param string $name
+     *
+     * @return void
      */
     protected function beginBlock($name)
     {
-        array_push($this->block_stacks, $name);
+        array_push($this->blockStacks, $name);
         ob_start();
     }
 
     /**
-     * Ends the block
-     * @param   bool  $overwrite  Overwrite earlier block if it already exists?
-     * @return  void
+     * Ends a block
+     *
+     * @param bool $overwrite
+     *
+     * @return void
      */
     protected function endBlock($overwrite = false)
     {
-        $name = array_pop($this->block_stacks);
+        $name = array_pop($this->blockStacks);
+
         if ($overwrite || ! array_key_exists($name, $this->blocks)) {
             $this->blocks[$name] = ob_get_clean();
         } else {
