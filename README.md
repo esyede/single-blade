@@ -188,8 +188,8 @@ we already use this API to define our new `@capitalize()` command:
 Blade::directive(string $name, Closure $callback)
 
 
-// Example:
-Blade::directive('capitalize', function ($value) {
+// Usage example:
+$blade->directive('capitalize', function ($value) {
   return strtolower($value);
 });
 
@@ -205,8 +205,8 @@ built-in `@set()` command:
 // Signature:
 Blade::extend(Closure $compiler)
 
-// Example:
-Blade::extend(function ($value) {
+// Usage example:
+$blade->extend(function ($value) {
   return preg_replace("/@set\(['\"](.*?)['\"]\,(.*)\)/", '<?php $$1 =$2; ?>', $value);
 });
 ```
