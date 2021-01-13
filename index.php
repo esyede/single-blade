@@ -1,7 +1,9 @@
 <?php
 include 'Blade.php';
 
-$blade = new Esyede\Blade();
+use Esyede\Blade;
+
+$blade = new Blade();
 
 // View data
 $title = 'blade test';
