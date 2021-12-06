@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 class Blade
 {
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.2';
 
     protected $fileExtension = null;
     protected $viewFolder = null;
@@ -78,8 +78,8 @@ class Blade
             // custom directives
             if (isset(self::$directives[$match[1]])) {
                 if ((isset($match[3]) && '(' == $match[3][0])
-                && ')' == $match[3][count($match[3]) - 1]) {
-                    $match[3] = mb_substr($match[3], 1, -1);
+                && ')' == $match[3][strlen($match[3]) - 1]) {
+                    $match[3] = substr($match[3], 1, -1);
                 }
 
                 if (isset($match[3]) && '()' !== $match[3]) {
