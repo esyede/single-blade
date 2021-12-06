@@ -67,7 +67,7 @@ class Blade
      */
     protected function compileStatements($statement)
     {
-        $pattern = '/[ \t]*+\B@(\w+)(?: [ \t]*( \( ( (?>[^()]+) | (?2) )* \) ) )?/x';
+        $pattern = '/\B@(@?\w+(?:->\w+)?)([ \t]*)(\( ( (?>[^()]+) | (?3) )* \))?/x';
 
         return preg_replace_callback($pattern, function ($match) {
             // default commands
