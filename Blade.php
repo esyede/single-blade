@@ -508,10 +508,18 @@ class Blade
      */
     protected function compileForelse($iterable)
     {
+        preg_match('/\( *(.*) +as *(.*)\)$/is', $expression, $matches);
+
+        $iteratee = trim($matches[1]);
+        $iteration = trim($matches[2]);
+        $initLoop = "\$__currloopdata = {$iteratee}; \$this->addLoop(\$__currloopdata);";
+        $iterateLoop = '$this->incrementLoopIndices(); $loop = $this->getFirstLoop();';
+
         ++$this->emptyCounter;
 
-        return "<?php \$__empty_{$this->emptyCounter} = true; ".
-            "foreach{$iterable}: \$__empty_{$this->emptyCounter} = false;?>";
+        return "<?php {$initLoop} \$__empty_{$this->emptyCounter} = true;"
+            ." foreach(\$__currloopdata as {$iteration}): "
+            ."\$__empty_{$this->emptyCounter} = false; {$iterateLoop} ?>";
     }
 
     /**
