@@ -398,7 +398,6 @@ class Blade
     {
         if ($condition) {
             preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
-
             return $matches
                 ? '<?php continue '.max(1, $matches[1]).'; ?>'
                 : "<?php if{$value} continue; ?>";
@@ -418,7 +417,6 @@ class Blade
     {
         if ($condition) {
             preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
-
             return $matches
                 ? '<?php exit '.max(1, $matches[1]).'; ?>'
                 : "<?php if{$condition} exit; ?>";
@@ -576,7 +574,7 @@ class Blade
      */
     protected function compileExtends($parent)
     {
-        if (isset($parent) && '(' == $parent[0]) {
+        if (isset($parent[0]) && '(' === $parent[0]) {
             $parent = substr($parent, 1, -1);
         }
 
@@ -592,7 +590,7 @@ class Blade
      */
     protected function compileInclude($view)
     {
-        if (isset($view) && '(' == $view[0]) {
+        if (isset($view[0]) && '(' === $view[0]) {
             $view = substr($view, 1, -1);
         }
 
