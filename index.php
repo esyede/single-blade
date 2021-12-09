@@ -14,7 +14,7 @@ $numbers = range(1, 50);
 
 // Custom directive test
 $blade->directive('capitalize', function ($text) {
-	return "<?php echo strtoupper($text) ?>";
+    return "<?php echo strtoupper($text) ?>";
 });
 
 $data = compact('title', 'link', 'content', 'mytext', 'numbers');
