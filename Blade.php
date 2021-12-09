@@ -3,17 +3,18 @@
 namespace Esyede;
 
 use Closure;
+use Countable;
 use RuntimeException;
 use InvalidArgumentException;
 
 class Blade
 {
-    const VERSION = '1.0.2';
+    const VERSION = '1.0.3';
 
-    protected $fileExtension = null;
-    protected $viewFolder = null;
-    protected $cacheFolder = null;
-    protected $echoFormat = null;
+    protected $fileExtension;
+    protected $viewFolder;
+    protected $cacheFolder;
+    protected $echoFormat;
     protected $extensions = [];
     protected $templates = [];
 
@@ -21,9 +22,9 @@ class Blade
 
     protected $blocks = [];
     protected $blockStacks = [];
+    protected $loopStacks = [];
     protected $emptyCounter = 0;
     protected $firstCaseSwitch = true;
-
 
     public function __construct()
     {
@@ -31,39 +32,41 @@ class Blade
         $this->setViewFolder('views'.DIRECTORY_SEPARATOR);
         $this->setCacheFolder('cache'.DIRECTORY_SEPARATOR);
         $this->createCacheFolder();
-        $this->setEchoFormat('$this->esc(%s)');
-        // reset
+        $this->setEchoFormat('$this->e(%s)');
+
         $this->blocks = [];
         $this->blockStacks = [];
+        $this->loopStacks = [];
     }
 
     /**
-     * Create cache folder
+     * Create cache folder.
      *
      * @return bool
      */
     public function createCacheFolder()
     {
         if (! is_dir($this->cacheFolder)) {
-            $created = mkdir($this->cacheFolder, 0755, true);
-
-            if (false === $created) {
-                throw new RuntimeException('Unable to create view cache folder: '.$this->cacheFolder);
+            try {
+                mkdir($this->cacheFolder, 0755, true);
+            } catch (\Throwable $e) {
+                throw new \Exception('Unable to create view cache folder: '.$this->cacheFolder);
+            } catch (\Exception $e) {
+                throw new \Exception('Unable to create view cache folder: '.$this->cacheFolder);
             }
         }
-
-        return true;
     }
 
     //!----------------------------------------------------------------
     //! Compilers
     //!----------------------------------------------------------------
+
     /**
-     * Compile blade statements
+     * Compile blade statements.
      *
      * @param string $statement
      *
-     * @return  string
+     * @return string
      */
     protected function compileStatements($statement)
     {
@@ -72,13 +75,13 @@ class Blade
         return preg_replace_callback($pattern, function ($match) {
             // default commands
             if (method_exists($this, $method = 'compile'.ucfirst($match[1]))) {
-                $match[0] = $this->$method(isset($match[3]) ? $match[3] : '');
+                $match[0] = $this->{$method}(isset($match[3]) ? $match[3] : '');
             }
 
             // custom directives
             if (isset(self::$directives[$match[1]])) {
-                if ((isset($match[3]) && '(' == $match[3][0])
-                && ')' == $match[3][strlen($match[3]) - 1]) {
+                if ((isset($match[3][0]) && '(' === $match[3][0])
+                && (isset($match[3][strlen($match[3]) - 1]) && ')' === $match[3][strlen($match[3]) - 1])) {
                     $match[3] = substr($match[3], 1, -1);
                 }
 
@@ -92,7 +95,7 @@ class Blade
     }
 
     /**
-     * Compile blade comments
+     * Compile blade comments.
      *
      * @param string $comment
      *
@@ -100,11 +103,11 @@ class Blade
      */
     protected function compileComments($comment)
     {
-    	return preg_replace('/\{\{--((.|\s)*?)--\}\}/', '<?php /*$1*/ ?>', $comment);
+        return preg_replace('/\{\{--((.|\s)*?)--\}\}/', '<?php /*$1*/ ?>', $comment);
     }
 
     /**
-     * Compile blade echoes
+     * Compile blade echoes.
      *
      * @param string $string
      *
@@ -115,26 +118,21 @@ class Blade
         // compile escaped echoes
         $string = preg_replace_callback('/\{\{\{\s*(.+?)\s*\}\}\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[2]) ? '' : $matches[2].$matches[2];
-
-            return '<?= $this->esc('.
-                $this->compileEchoDefaults($matches[1]).
-            ') ?>'.$whitespace;
+            return '<?php echo $this->e('.$this->compileEchoDefaults($matches[1]).') ?>'.$whitespace;
         }, $string);
 
         // compile unescaped echoes
         $string = preg_replace_callback('/\{\!!\s*(.+?)\s*!!\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[2]) ? '' : $matches[2].$matches[2];
-
-            return '<?= '.$this->compileEchoDefaults($matches[1]).' ?>'.$whitespace;
+            return '<?php echo '.$this->compileEchoDefaults($matches[1]).' ?>'.$whitespace;
         }, $string);
 
         // compile regular echoes
         $string = preg_replace_callback('/(@)?\{\{\s*(.+?)\s*\}\}(\r?\n)?/s', function ($matches) {
             $whitespace = empty($matches[3]) ? '' : $matches[3].$matches[3];
-
             return $matches[1]
                 ? substr($matches[0], 1)
-                : '<?= '
+                : '<?php echo '
                   .sprintf($this->echoFormat, $this->compileEchoDefaults($matches[2]))
                   .' ?>'.$whitespace;
         }, $string);
@@ -143,7 +141,7 @@ class Blade
     }
 
     /**
-     * Compile default echoes
+     * Compile default echoes.
      *
      * @param string $string
      *
@@ -155,7 +153,7 @@ class Blade
     }
 
     /**
-     * Compile user-defined extensions
+     * Compile user-defined extensions.
      *
      * @param string $string
      *
@@ -171,7 +169,7 @@ class Blade
     }
 
     /**
-     * Replace @php and @endphp blocks
+     * Replace @php and @endphp blocks.
      *
      * @param string $string
      *
@@ -187,15 +185,16 @@ class Blade
     }
 
     /**
-     * Escape variables
+     * Escape variables.
+     *
      * @param string $string
      * @param string $charset
      *
      * @return string
      */
-    public function esc($string, $charset = null)
+    public function e($string, $charset = null)
     {
-    	return htmlspecialchars($string, ENT_QUOTES, is_null($charset) ? 'UTF-8' : $charset);
+        return htmlspecialchars($string, ENT_QUOTES, is_null($charset) ? 'UTF-8' : $charset);
     }
 
     //!----------------------------------------------------------------
@@ -203,7 +202,7 @@ class Blade
     //!----------------------------------------------------------------
 
     /**
-     * Usage: @php($varName = 'value')
+     * Usage: @php($varName = 'value').
      *
      * @param string $value
      *
@@ -211,13 +210,13 @@ class Blade
      */
     protected function compilePhp($value)
     {
-    	return $value ? "<?php {$value}; ?>" : "@php{$value}";
+        return $value ? "<?php {$value}; ?>" : "@php{$value}";
     }
 
     /**
-     * Usage: @json($data)
+     * Usage: @json($data).
      *
-     * @param  mixed $data
+     * @param mixed $data
      *
      * @return string
      */
@@ -235,14 +234,14 @@ class Blade
 
         // PHP < 5.5.0 doesn't have the $depth parameter
         if (PHP_VERSION_ID >= 50500) {
-            return "<?= json_encode($parts[0], $options, $depth) ?>";
+            return "<?php echo json_encode($parts[0], $options, $depth) ?>";
         }
 
-        return "<?= json_encode($parts[0], $options) ?>";
+        return "<?php echo json_encode($parts[0], $options) ?>";
     }
 
     /**
-     * Usage: @unset($var)
+     * Usage: @unset($var).
      *
      * @param mixed $variable
      *
@@ -254,7 +253,7 @@ class Blade
     }
 
     /**
-     * Usage: @if ($condition)
+     * Usage: @if ($condition).
      *
      * @param mixed $condition
      *
@@ -266,7 +265,7 @@ class Blade
     }
 
     /**
-     * Usage: @elseif (condition)
+     * Usage: @elseif (condition).
      *
      * @param mixed $condition
      *
@@ -278,7 +277,7 @@ class Blade
     }
 
     /**
-     * Usage: @else
+     * Usage: @else.
      *
      * @return string
      */
@@ -288,7 +287,7 @@ class Blade
     }
 
     /**
-     * Usage: @endif
+     * Usage: @endif.
      *
      * @return string
      */
@@ -298,7 +297,7 @@ class Blade
     }
 
     /**
-     * Usage: @switch ($condition)
+     * Usage: @switch ($condition).
      *
      * @param mixed $condition
      *
@@ -307,12 +306,11 @@ class Blade
     protected function compileSwitch($condition)
     {
         $this->firstCaseSwitch = true;
-
         return "<?php switch{$condition}:";
     }
 
     /**
-     * Usage: @case ($condition)
+     * Usage: @case ($condition).
      *
      * @param mixed $condition
      *
@@ -322,7 +320,6 @@ class Blade
     {
         if ($this->firstCaseSwitch) {
             $this->firstCaseSwitch = false;
-
             return "case {$condition}: ?>";
         }
 
@@ -330,7 +327,7 @@ class Blade
     }
 
     /**
-     * Usage: @default
+     * Usage: @default.
      *
      * @return string
      */
@@ -340,16 +337,16 @@ class Blade
     }
 
     /**
-     * Usage: @break or @break($condition)
+     * Usage: @break or @break($condition).
      *
-     * @param   mixed  $condition
-     * @return  string
+     * @param mixed $condition
+     *
+     * @return string
      */
     protected function compileBreak($condition)
     {
         if ($condition) {
             preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
-
             return $matches
                 ? '<?php break '.max(1, $matches[1]).'; ?>'
                 : "<?php if{$condition} break; ?>";
@@ -359,7 +356,7 @@ class Blade
     }
 
     /**
-     * Usage: @endswitch
+     * Usage: @endswitch.
      *
      * @return string
      */
@@ -369,7 +366,7 @@ class Blade
     }
 
     /**
-     * Usage: @isset($variable)
+     * Usage: @isset($variable).
      *
      * @param mixed $variable
      *
@@ -377,11 +374,11 @@ class Blade
      */
     protected function compileIsset($variable)
     {
-        return "<?php if(isset{$variable}): ?>";
+        return "<?php if (isset{$variable}): ?>";
     }
 
     /**
-     * Usage: @endisset
+     * Usage: @endisset.
      *
      * @return string
      */
@@ -391,7 +388,7 @@ class Blade
     }
 
     /**
-     * Usage: @continue or @continue($condition)
+     * Usage: @continue or @continue($condition).
      *
      * @param mixed $condition
      *
@@ -411,7 +408,7 @@ class Blade
     }
 
     /**
-     * Usage: @exit or @exit($condition)
+     * Usage: @exit or @exit($condition).
      *
      * @param mixed $condition
      *
@@ -430,7 +427,7 @@ class Blade
     }
 
     /**
-     * Usage: @unless($condition)
+     * Usage: @unless($condition).
      *
      * @param mixed $condition
      *
@@ -442,7 +439,7 @@ class Blade
     }
 
     /**
-     * Usage: @endunless
+     * Usage: @endunless.
      *
      * @return string
      */
@@ -452,7 +449,7 @@ class Blade
     }
 
     /**
-     * Usage: @for ($condition)
+     * Usage: @for ($condition).
      *
      * @param mixed $condition
      *
@@ -464,7 +461,7 @@ class Blade
     }
 
     /**
-     * Usage: @endfor
+     * Usage: @endfor.
      *
      * @return string
      */
@@ -474,19 +471,26 @@ class Blade
     }
 
     /**
-     * Usage: @foreach ($iterable)
+     * Usage: @foreach ($expression).
      *
-     * @param mixed $iterable
+     * @param mixed $expression
      *
      * @return string
      */
-    protected function compileForeach($iterable)
+    protected function compileForeach($expression)
     {
-        return "<?php foreach{$iterable}: ?>";
+        preg_match('/\( *(.*) +as *(.*)\)$/is', $expression, $matches);
+
+        $iteratee = trim($matches[1]);
+        $iteration = trim($matches[2]);
+        $initLoop = "\$__currloopdata = {$iteratee}; \$this->addLoop(\$__currloopdata);";
+        $iterateLoop = '$this->incrementLoopIndices(); $loop = $this->getFirstLoop();';
+
+        return "<?php {$initLoop} foreach(\$__currloopdata as {$iteration}): {$iterateLoop} ?>";
     }
 
     /**
-     * Usage: @endforeach
+     * Usage: @endforeach.
      *
      * @return string
      */
@@ -496,7 +500,7 @@ class Blade
     }
 
     /**
-     * Usage: @forelse ($condition)
+     * Usage: @forelse ($condition).
      *
      * @param mixed $iterable
      *
@@ -507,12 +511,11 @@ class Blade
         ++$this->emptyCounter;
 
         return "<?php \$__empty_{$this->emptyCounter} = true; ".
-            "foreach{$iterable}: ".
-            "\$__empty_{$this->emptyCounter} = false;?>";
+            "foreach{$iterable}: \$__empty_{$this->emptyCounter} = false;?>";
     }
 
     /**
-     * Usage: @empty
+     * Usage: @empty.
      *
      * @return string
      */
@@ -525,7 +528,7 @@ class Blade
     }
 
     /**
-     * Usage: @endforelse
+     * Usage: @endforelse.
      *
      * @return string
      */
@@ -535,7 +538,7 @@ class Blade
     }
 
     /**
-     * Usage: @while ($condition)
+     * Usage: @while ($condition).
      *
      * @param mixed $condition
      *
@@ -547,7 +550,7 @@ class Blade
     }
 
     /**
-     * Usage: @endwhile
+     * Usage: @endwhile.
      *
      * @return string
      */
@@ -557,7 +560,7 @@ class Blade
     }
 
     /**
-     * Usage: @extends($parent)
+     * Usage: @extends($parent).
      *
      * @param string $parent
      *
@@ -573,7 +576,7 @@ class Blade
     }
 
     /**
-     * Usage: @include($view)
+     * Usage: @include($view).
      *
      * @param string $view
      *
@@ -589,7 +592,7 @@ class Blade
     }
 
     /**
-     * Usage: @yield($string)
+     * Usage: @yield($string).
      *
      * @param string $string
      *
@@ -597,11 +600,11 @@ class Blade
      */
     protected function compileYield($string)
     {
-        return "<?= \$this->block{$string} ?>";
+        return "<?php echo \$this->block{$string} ?>";
     }
 
     /**
-     * Usage: @section($name)
+     * Usage: @section($name).
      *
      * @param string $name
      *
@@ -613,7 +616,7 @@ class Blade
     }
 
     /**
-     * Usage: @endsection
+     * Usage: @endsection.
      *
      * @return string
      */
@@ -623,17 +626,17 @@ class Blade
     }
 
     /**
-     * Usage: @show
+     * Usage: @show.
      *
      * @return string
      */
     protected function compileShow()
     {
-        return '<?= $this->block($this->endBlock()) ?>';
+        return '<?php echo $this->block($this->endBlock()) ?>';
     }
 
     /**
-     * Usage: @append
+     * Usage: @append.
      *
      * @return string
      */
@@ -643,7 +646,7 @@ class Blade
     }
 
     /**
-     * Usage: @stop
+     * Usage: @stop.
      *
      * @return string
      */
@@ -653,7 +656,7 @@ class Blade
     }
 
     /**
-     * Usage: @overwrite
+     * Usage: @overwrite.
      *
      * @return string
      */
@@ -663,7 +666,7 @@ class Blade
     }
 
     /**
-     * Usage: @method('put')
+     * Usage: @method('put').
      *
      * @param string $method
      *
@@ -671,12 +674,13 @@ class Blade
      */
     protected function compileMethod($method)
     {
-        return "<input type=\"hidden\" name=\"_method\" value=\"<?= strtoupper{$method} ?>\">\n";
+        return "<input type=\"hidden\" name=\"_method\" value=\"<?php echo strtoupper{$method} ?>\">\n";
     }
 
     //!----------------------------------------------------------------
     //! Renderer
     //!----------------------------------------------------------------
+
     /**
      * Render the view template.
      * Tip: dot and forward-slash (., /) can be used as directory separator.
@@ -686,7 +690,6 @@ class Blade
      * @param bool   $returnOnly
      *
      * @return string
-     *
      */
     public function render($name, array $data = [], $returnOnly = false)
     {
@@ -694,13 +697,13 @@ class Blade
 
         if (false !== $returnOnly) {
             return $html;
-        } else {
-            echo $html;
         }
+
+        echo $html;
     }
 
     /**
-     * Clear chache folder
+     * Clear chache folder.
      *
      * @return bool
      */
@@ -708,11 +711,12 @@ class Blade
     {
         $extension = ltrim($this->fileExtension, '.');
         $files = glob($this->cacheFolder.DIRECTORY_SEPARATOR.'*.'.$extension);
-
         $result = true;
 
         foreach ($files as $file) {
-            $result = @unlink($file);
+            if (is_file($file)) {
+                $result = @unlink($file);
+            }
         }
 
         return $result;
@@ -720,7 +724,7 @@ class Blade
 
     /**
      * Set file extension for the view files
-     * Default to: '.blade.php'
+     * Default to: '.blade.php'.
      *
      * @param string $extension
      */
@@ -731,29 +735,29 @@ class Blade
 
     /**
      * Set view folder location
-     * Default to: './views'
+     * Default to: './views'.
      *
      * @param string $value
      */
     public function setViewFolder($path)
     {
-    	$this->viewFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
+        $this->viewFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
     }
 
     /**
      * Set cache folder location
-     * Default to: ./cache
+     * Default to: ./cache.
      *
      * @param string $path
      */
     public function setCacheFolder($path)
     {
-    	$this->cacheFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
+        $this->cacheFolder = str_replace('/', DIRECTORY_SEPARATOR, $path);
     }
 
     /**
      * Set echo format
-     * Default to: '$this->esc($data)'
+     * Default to: '$this->e($data)'.
      *
      * @param string $format
      */
@@ -763,7 +767,7 @@ class Blade
     }
 
     /**
-     * Extend this class (Add custom directives)
+     * Extend this class (Add custom directives).
      *
      * @param Closure $compiler
      */
@@ -773,26 +777,25 @@ class Blade
     }
 
     /**
-     * Another (simpler) way to add custom directives
+     * Another (simpler) way to add custom directives.
      *
      * @param string $name
-     *
      * @param string $callback
      */
     public function directive($name, Closure $callback)
     {
         if (! preg_match('/^\w+(?:->\w+)?$/x', $name)) {
-        	throw new InvalidArgumentException(
-        		'The directive name ['.$name.'] is not valid. Directive names '.
+            throw new InvalidArgumentException(
+                'The directive name ['.$name.'] is not valid. Directive names '.
                 'must only contains alphanumeric characters and underscores.'
-        	);
+            );
         }
 
         self::$directives[$name] = $callback;
     }
 
     /**
-     * Get all defined directives
+     * Get all defined directives.
      *
      * @return array
      */
@@ -802,7 +805,7 @@ class Blade
     }
 
     /**
-     * Prepare the view file (locate and extract)
+     * Prepare the view file (locate and extract).
      *
      * @param string $view
      */
@@ -812,7 +815,7 @@ class Blade
         $actual = $this->viewFolder.DIRECTORY_SEPARATOR.$view.$this->fileExtension;
 
         $view = str_replace(['/', '\\', DIRECTORY_SEPARATOR], '.', $view);
-        $cache = $this->cacheFolder.DIRECTORY_SEPARATOR.$view.'__'.md5($view).'.php';
+        $cache = $this->cacheFolder.DIRECTORY_SEPARATOR.$view.'__'.sprintf('%u', crc32($view)).'.php';
 
         if (! is_file($cache) || filemtime($actual) > filemtime($cache)) {
             if (! is_file($actual)) {
@@ -841,11 +844,10 @@ class Blade
     }
 
     /**
-     * Fetch the view data passed by user
+     * Fetch the view data passed by user.
      *
      * @param string $view
-     *
-     * @param array $data
+     * @param array  $data
      */
     public function fetch($name, array $data = [])
     {
@@ -857,9 +859,7 @@ class Blade
 
         while ($templates = array_shift($this->templates)) {
             $this->beginBlock('content');
-
             require $this->prepare($templates);
-
             $this->endBlock(true);
         }
 
@@ -867,9 +867,9 @@ class Blade
     }
 
     /**
-     * Helper method for @extends() directive to define parent view
+     * Helper method for @extends() directive to define parent view.
      *
-     * @param  string $name
+     * @param string $name
      */
     protected function addParent($name)
     {
@@ -877,7 +877,7 @@ class Blade
     }
 
     /**
-     * Return content of block if exists
+     * Return content of block if exists.
      *
      * @param string $name
      * @param mixed  $default
@@ -890,7 +890,7 @@ class Blade
     }
 
     /**
-     * Start a block
+     * Start a block.
      *
      * @param string $name
      *
@@ -903,7 +903,7 @@ class Blade
     }
 
     /**
-     * Ends a block
+     * Ends a block.
      *
      * @param bool $overwrite
      *
@@ -920,5 +920,54 @@ class Blade
         }
 
         return $name;
+    }
+
+    /**
+     * Add new loop to the stack.
+     *
+     * @param array $data
+     */
+    public function addLoop(array $data)
+    {
+        $length = (is_array($data) || $data instanceof Countable) ? count($data) : null;
+        $parent = empty($this->loopStacks) ? null : end($this->loopStacks);
+        $this->loopStacks[] = [
+            'iteration' => 0,
+            'index' => 0,
+            'remaining' => isset($length) ? $length : null,
+            'count' => $length,
+            'first' => true,
+            'last' => isset($length) ? ($length === 1) : null,
+            'depth' => count($this->loopStacks) + 1,
+            'parent' => $parent ? (object) $parent : null,
+        ];
+    }
+
+    /**
+     * Increment the top loop's indices.
+     *
+     * @return void
+     */
+    public function incrementLoopIndices()
+    {
+        $loop = &$this->loopStacks[count($this->loopStacks) - 1];
+        $loop['iteration']++;
+        $loop['index'] = $loop['iteration'] - 1;
+        $loop['first'] = ((int) $loop['iteration'] === 1);
+
+        if (isset($loop['count'])) {
+            $loop['remaining']--;
+            $loop['last'] = ((int) $loop['iteration'] === (int) $loop['count']);
+        }
+    }
+
+    /**
+     * Get an instance of the first loop in the stack.
+     *
+     * @return \stdClass|null
+     */
+    public function getFirstLoop()
+    {
+        return ($last = end($this->loopStacks)) ? (object) $last : null;
     }
 }
