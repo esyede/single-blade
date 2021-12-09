@@ -931,9 +931,9 @@ class Blade
     /**
      * Add new loop to the stack.
      *
-     * @param array $data
+     * @param mixed $data
      */
-    public function addLoop(array $data)
+    public function addLoop($data)
     {
         $length = (is_array($data) || $data instanceof Countable) ? count($data) : null;
         $parent = empty($this->loopStacks) ? null : end($this->loopStacks);
