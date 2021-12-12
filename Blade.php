@@ -500,11 +500,11 @@ class Blade
     /**
      * Usage: @forelse ($condition).
      *
-     * @param mixed $iterable
+     * @param mixed $expression
      *
      * @return string
      */
-    protected function compileForelse($iterable)
+    protected function compileForelse($expression)
     {
         preg_match('/\( *(.*) +as *(.*)\)$/is', $expression, $matches);
 
