@@ -400,7 +400,7 @@ class Blade
             preg_match('/\(\s*(-?\d+)\s*\)$/', $condition, $matches);
             return $matches
                 ? '<?php continue '.max(1, $matches[1]).'; ?>'
-                : "<?php if{$value} continue; ?>";
+                : "<?php if{$condition} continue; ?>";
         }
 
         return '<?php continue; ?>';
